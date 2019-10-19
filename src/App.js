@@ -1,16 +1,66 @@
 import React, { Component } from 'react';
 import jwt_decode from 'jwt-decode';
+import { Grommet, Box, Heading, Button, Menu } from 'grommet';
+import { Menu as MenuIcon } from 'grommet-icons'
+import { grommet } from "grommet/themes";
 
 import Configs from './Config';
+import ApiHandler from './Api';
+import LinksTable from './LinksTable';
 
 import './App.css';
+
+const Header = (props) => (
+  <Box
+    tag='header'
+    background='brand'
+    pad='small'
+    elevation='small'
+    justify='between'
+    direction='row'
+    align='center'
+    flex={false}
+  >
+    <Heading level={3} margin='none'>
+      <strong>URL Shortener</strong>
+    </Heading>
+    <Menu
+      dropAlign={{ top: 'bottom', right: 'right' }}
+      items={[
+        { label: "Logged in as " + props.userName, disabled: true },
+        { label: "Logout", onClick: () => {
+          // need to logout
+          props.logout();
+        } }
+      ]}
+      icon={<MenuIcon color='white' />}
+    />
+    
+  </Box>
+);
+
+const Footer = () => (
+  <Box
+    tag='footer'
+    direction='row'
+    justify='end'
+    pad='medium'
+    border={{ side: 'top' }}
+    gap='small'
+    flex={false}
+  >
+    <Button label='Remove' color='border' onClick={() => {}} />
+    <Button label='Add' primary={true} onClick={() => {}} />
+  </Box>
+);
 
 class App extends Component { 
   constructor(props) {
     super(props);
     this.state = {
       loggedIn: false,
-      token: {}
+      token: {},
+      links: []
     }
   }
 
@@ -40,10 +90,15 @@ class App extends Component {
 
   updateStateWithTokenData(token) {
     var decoded = jwt_decode(token);
+    console.log(decoded);
     this.setState({
       loggedIn: true,
       token: decoded
     });
+  }
+
+  logoutUser() {
+    alert("log out");
   }
 
   componentDidMount() {
@@ -70,6 +125,7 @@ class App extends Component {
         // we have a token
         // check it is not expired
         id_token = window.localStorage.getItem("urls_jwt");
+        console.log(id_token);
         if(this.checkIfTokenExpired(id_token)) {
           // token is expired, so we need a new one
           // remove it, and go to login
@@ -77,7 +133,8 @@ class App extends Component {
           redirect_to_login = true;
         } else {
           // token is okay, update state with the data
-          
+          this.updateStateWithTokenData(id_token);
+          this.getLinks(id_token);
         }
       }
     }
@@ -86,12 +143,44 @@ class App extends Component {
     }
   }
 
-  render() {
-    return (
-        <div>
+  getLinks(token) {
+    var apiClient = new ApiHandler(token);
+    apiClient.getLinks((data) => {
+      console.log("got links");
+      console.log(data);
+      this.setState({
+        links: data
+      });
+    }, () => {
+      console.log("error getting links");
+    })
+  }
 
-        </div>
-    );
+  render() {
+    if(this.state.loggedIn) {
+      return (
+        <Grommet theme={grommet} full={true}>
+          <Box fill={true}>
+            <Header userName={this.state.token["cognito:username"]} logout={this.logoutUser} />
+            <Box flex={true} pad='medium' overflow='auto'>
+              <Box flex={false}>
+                <Heading level={3} margin='none'>
+                  <strong>My Short URLs</strong>
+                </Heading>
+                <Box pad={{ top: 'medium' }} gap='small'>
+                  <LinksTable links={this.state.links}></LinksTable>
+                </Box>
+              </Box>
+            </Box>
+            <Footer />
+          </Box>
+        </Grommet>
+      );
+    } else {
+      return (
+        <div></div>
+      );
+    }
   }
 }
 
