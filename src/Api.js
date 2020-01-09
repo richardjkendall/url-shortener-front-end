@@ -24,6 +24,25 @@ class ApiHandler {
             failure_callback();
         });
     }
+
+    addLink(new_url, success_callback, failure_callback) {
+        console.log("adding url, url is", new_url, "token is", this.api_key);
+        var self = this;
+        axios({
+            method: "post",
+            url: Configs.API_URL + "/",
+            responseType: "json",
+            headers: {"Authorization": self.api_key},
+            data: {
+                action: "add",
+                url: new_url
+            }
+        }).then(function(response) {
+            success_callback(response.data);
+        }).catch(function(error) {
+            failure_callback();
+        })
+    }
 }
 
 export default ApiHandler;

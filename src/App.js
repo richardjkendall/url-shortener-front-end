@@ -1,6 +1,8 @@
 import React, { Component } from 'react';
 import jwt_decode from 'jwt-decode';
-import { Grommet, Box, Heading, Button, Menu } from 'grommet';
+import isURL from 'validator/lib/isURL';
+
+import { Grommet, Box, Heading, Text, TextInput, Button, Menu, Layer } from 'grommet';
 import { Menu as MenuIcon } from 'grommet-icons'
 import { grommet } from "grommet/themes";
 
@@ -39,7 +41,7 @@ const Header = (props) => (
   </Box>
 );
 
-const Footer = () => (
+const Footer = (props) => (
   <Box
     tag='footer'
     direction='row'
@@ -50,13 +52,81 @@ const Footer = () => (
     flex={false}
   >
     <Button label='Remove' color='border' onClick={() => {}} />
-    <Button label='Add' primary={true} onClick={() => {}} />
+    <Button label='Add' primary={true} onClick={() => {props.add()}} />
   </Box>
 );
+
+const AddLink = (props) => {
+  const [url, setUrl] = React.useState("");
+  const [controlsDisabled, setControlsDisabled] = React.useState(false);
+  
+  const callAddLink = function() {
+    console.log("in calladdlink", url);
+    if(isURL(url)) {
+      setControlsDisabled(true);
+      var apiClient = new ApiHandler(props.token);
+      apiClient.addLink(url, (data) => {
+        setControlsDisabled(false);
+        setUrl("");
+        props.success();
+      }, () => {
+        console.log("error adding link");
+      });
+    } else {
+      console.log(url, "is not a valid URL");
+    }
+  }
+
+  return (
+    <div>
+      {props.open && (
+        <Layer position="center" modal onClickOutside={props.close} onEsc={props.close}>
+          <Box pad="medium" gap="small" width="large">
+            <Heading level={3} margin="none">Add New Link</Heading>
+            <Text>Please enter the URL for the link you want to add</Text>
+            <TextInput 
+              placeholder="url..."
+              value={url}
+              onChange={event => setUrl(event.target.value)}
+              disabled={controlsDisabled}
+            />
+            <Box 
+              as="footer"
+              gap="small"
+              direction="row"
+              align="center"
+              justify="end"
+              pad={{top: "medium", bottom: "small"}}
+            >
+              <Button 
+                label="Cancel" 
+                color="border" 
+                onClick={props.close} 
+                disabled={controlsDisabled}
+              />
+              <Button
+                label={
+                  <Text color="white">
+                    <strong>Add Link</strong>
+                  </Text>
+                }
+                primary
+                onClick={callAddLink}
+                disabled={controlsDisabled}
+              />
+            </Box>
+          </Box>
+        </Layer>
+      )}
+    </div>
+  )
+
+};
 
 class App extends Component { 
   constructor(props) {
     super(props);
+    this.addLink = {};
     this.state = {
       loggedIn: false,
       token: {},
@@ -93,7 +163,9 @@ class App extends Component {
     console.log(decoded);
     this.setState({
       loggedIn: true,
-      token: decoded
+      originalToken: token,
+      token: decoded,
+      addLinkOpen: false
     });
   }
 
@@ -156,6 +228,27 @@ class App extends Component {
     })
   }
 
+  openAddLinkWindow() {
+    console.log("open add link box");
+    this.setState({
+      addLinkOpen: true
+    });
+  }
+
+  closeAddLinkWindow() {
+    console.log("close add link box");
+    this.setState({
+      addLinkOpen: false
+    });
+  }
+
+  linkAddSuccessCallback() {
+    this.setState({
+      addLinkOpen: false
+    });
+    this.getLinks(this.state.originalToken);
+  }
+
   render() {
     if(this.state.loggedIn) {
       return (
@@ -172,8 +265,14 @@ class App extends Component {
                 </Box>
               </Box>
             </Box>
-            <Footer />
+            <Footer add={this.openAddLinkWindow.bind(this)} />
           </Box>
+          <AddLink 
+            open={this.state.addLinkOpen} 
+            close={this.closeAddLinkWindow.bind(this)} 
+            token={this.state.originalToken}
+            success={this.linkAddSuccessCallback.bind(this)}
+          />
         </Grommet>
       );
     } else {
