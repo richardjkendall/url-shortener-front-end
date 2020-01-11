@@ -19,6 +19,26 @@ class ApiHandler {
                 action: "list"
             }
         }).then(function(response) {
+            success_callback(response.data.links);
+        }).catch(function(error) {
+            failure_callback();
+        });
+    }
+
+    getLinksPage(page_number, page_size, success_callback, failure_callback) {
+        console.log("in paginated get links, page is", page_number, ", token is", this.api_key);
+        var self = this;
+        axios({
+            method: "post",
+            url: Configs.API_URL + "/",
+            responseType: "json",
+            headers: { "Authorization": self.api_key },
+            data: {
+                action: "list",
+                page: page_number,
+                page_size: page_size
+            }
+        }).then(function(response) {
             success_callback(response.data);
         }).catch(function(error) {
             failure_callback();
@@ -36,6 +56,25 @@ class ApiHandler {
             data: {
                 action: "add",
                 url: new_url
+            }
+        }).then(function(response) {
+            success_callback(response.data);
+        }).catch(function(error) {
+            failure_callback();
+        })
+    }
+
+    deleteLink(link_id, success_callback, failure_callback) {
+        console.log("deleting link, linkid is", link_id, "token is", this.api_key);
+        var self = this;
+        axios({
+            method: "post",
+            url: Configs.API_URL + "/",
+            responseType: "json",
+            headers: {"Authorization": self.api_key},
+            data: {
+                action: "delete",
+                linkid: link_id
             }
         }).then(function(response) {
             success_callback(response.data);

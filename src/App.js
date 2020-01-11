@@ -3,7 +3,7 @@ import jwt_decode from 'jwt-decode';
 import isURL from 'validator/lib/isURL';
 
 import { Grommet, Box, Heading, Text, TextInput, Button, Menu, Layer } from 'grommet';
-import { Menu as MenuIcon } from 'grommet-icons'
+import { Menu as MenuIcon, Next, Previous } from 'grommet-icons'
 import { grommet } from "grommet/themes";
 
 import Configs from './Config';
@@ -51,36 +51,66 @@ const Footer = (props) => (
     gap='small'
     flex={false}
   >
-    <Button label='Remove' color='border' onClick={() => {}} />
+    <Button label='Remove' color='border' onClick={() => {props.remove()}} />
     <Button label='Add' primary={true} onClick={() => {props.add()}} />
   </Box>
 );
 
+const copyToClipboard = (linkid) => {
+  console.log("put link on clipboard", Configs.API_URL, "/", linkid);
+  var text = Configs.API_URL + "/" + linkid;
+  navigator.clipboard.writeText(text).then(function() {
+    console.log('Async: Copying to clipboard was successful!');
+  }, function(err) {
+    console.error('Async: Could not copy text: ', err);
+  });
+}
+
 const AddLink = (props) => {
+  const [urlAdded, setUrlAdded] = React.useState(false);
   const [url, setUrl] = React.useState("");
+  const [error, setError] = React.useState("");
   const [controlsDisabled, setControlsDisabled] = React.useState(false);
-  
+  const [linkid, setLinkid] = React.useState("");
+
   const callAddLink = function() {
     console.log("in calladdlink", url);
     if(isURL(url)) {
       setControlsDisabled(true);
       var apiClient = new ApiHandler(props.token);
       apiClient.addLink(url, (data) => {
+        console.log(data);
         setControlsDisabled(false);
         setUrl("");
-        props.success();
+        setError("");
+        setLinkid(data.linkid);
+        copyToClipboard(data.linkid);
+        setUrlAdded(true);
       }, () => {
         console.log("error adding link");
       });
     } else {
+      setError("This is not a valid URL");
       console.log(url, "is not a valid URL");
     }
+  }
+
+  const closeAddedSuccessWindow = function() {
+    setUrlAdded(false);
+    props.success(linkid);
+  }
+
+  const closeAndClear = function() {
+    setControlsDisabled(false);
+    setUrl("");
+    setError("");
+    props.close();
   }
 
   return (
     <div>
       {props.open && (
-        <Layer position="center" modal onClickOutside={props.close} onEsc={props.close}>
+        <Layer position="center" modal onClickOutside={closeAndClear} onEsc={closeAndClear}>
           <Box pad="medium" gap="small" width="large">
             <Heading level={3} margin="none">Add New Link</Heading>
             <Text>Please enter the URL for the link you want to add</Text>
@@ -90,6 +120,8 @@ const AddLink = (props) => {
               onChange={event => setUrl(event.target.value)}
               disabled={controlsDisabled}
             />
+            {error!=="" && 
+            <Text color="status-error">{error}</Text>}
             <Box 
               as="footer"
               gap="small"
@@ -101,7 +133,7 @@ const AddLink = (props) => {
               <Button 
                 label="Cancel" 
                 color="border" 
-                onClick={props.close} 
+                onClick={closeAndClear} 
                 disabled={controlsDisabled}
               />
               <Button
@@ -116,8 +148,45 @@ const AddLink = (props) => {
               />
             </Box>
           </Box>
+          <AddedMessage open={urlAdded} close={closeAddedSuccessWindow} linkid={linkid} />
         </Layer>
       )}
+    </div>
+  )
+
+};
+
+const AddedMessage = (props) => {
+
+  return(
+    <div>
+      {props.open &&
+        <Layer position="center" modal onClickOutside={props.close} onEsc={props.close}>
+          <Box pad="medium" gap="small" width="large">
+            <Heading level={3} margin="none">Link Added</Heading>
+            <Text>Short URL is: <strong>{Configs.API_URL}/{props.linkid}</strong></Text>
+            <Text>This has been copied to your Clipboard</Text>
+            <Box 
+              as="footer"
+              gap="small"
+              direction="row"
+              align="center"
+              justify="end"
+              pad={{top: "medium", bottom: "small"}}
+            >
+              <Button
+                label={
+                  <Text color="white">
+                    <strong>Okay</strong>
+                  </Text>
+                }
+                primary
+                onClick={props.close}
+              />
+            </Box>
+          </Box>
+        </Layer>
+      }
     </div>
   )
 
@@ -130,7 +199,12 @@ class App extends Component {
     this.state = {
       loggedIn: false,
       token: {},
-      links: []
+      links: [],
+      selectedLink: "",
+      totalLinkCount: 0,
+      currentPage: 0,
+      prevDisabled: true,
+      nextDisabled: true
     }
   }
 
@@ -206,7 +280,7 @@ class App extends Component {
         } else {
           // token is okay, update state with the data
           this.updateStateWithTokenData(id_token);
-          this.getLinks(id_token);
+          this.getLinks(id_token, 0);
         }
       }
     }
@@ -215,13 +289,18 @@ class App extends Component {
     }
   }
 
-  getLinks(token) {
+  getLinks(token, page) {
     var apiClient = new ApiHandler(token);
-    apiClient.getLinks((data) => {
+    apiClient.getLinksPage(page, Configs.PAGE_SIZE, (data) => {
       console.log("got links");
       console.log(data);
+      console.log("next enabled, total pages:", data.total_number / Configs.PAGE_SIZE);
       this.setState({
-        links: data
+        links: data.links,
+        totalLinkCount: data.total_number,
+        currentPage: page,
+        nextDisabled: page >= Math.floor((data.total_number / Configs.PAGE_SIZE)),
+        prevDisabled: page == 0
       });
     }, () => {
       console.log("error getting links");
@@ -242,11 +321,40 @@ class App extends Component {
     });
   }
 
-  linkAddSuccessCallback() {
+  linkAddSuccessCallback(linkid) {
+    console.log("in link add success callback, linkid is", linkid);
     this.setState({
-      addLinkOpen: false
+      addLinkOpen: false,
+      selectedLink: linkid
     });
-    this.getLinks(this.state.originalToken);
+    this.getLinks(this.state.originalToken, 0);
+  }
+
+  selectLink(linkid) {
+    this.setState({
+      selectedLink: linkid
+    });
+  }
+
+  deleteLink() {
+    var apiClient = new ApiHandler(this.state.originalToken);
+    apiClient.deleteLink(this.state.selectedLink, (data) => {
+      this.getLinks(this.state.originalToken, this.state.currentPage);
+    }, () => {
+      console.log("error deleting link");
+    });
+  }
+
+  nextPage() {
+    if(this.state.currentPage < Math.floor((this.state.totalLinkCount / Configs.PAGE_SIZE))) {
+      this.getLinks(this.state.originalToken, this.state.currentPage + 1);
+    }
+  }
+
+  prevPage() {
+    if(this.state.currentPage > 0) {
+      this.getLinks(this.state.originalToken, this.state.currentPage - 1);
+    }
   }
 
   render() {
@@ -261,11 +369,35 @@ class App extends Component {
                   <strong>My Short URLs</strong>
                 </Heading>
                 <Box pad={{ top: 'medium' }} gap='small'>
-                  <LinksTable links={this.state.links}></LinksTable>
+                  <LinksTable 
+                    links={this.state.links}
+                    selectLink={this.selectLink.bind(this)}
+                    selectedLink={this.state.selectedLink}
+                    page={this.state.currentPage}
+                    pageSize={Configs.PAGE_SIZE}
+                    totalNumber={this.state.totalLinkCount}
+                  />
+                </Box>
+                <Box align="end" pad="none" direction="row">
+                  <Button hoverIndicator="light-1" disabled={this.state.prevDisabled} onClick={this.prevPage.bind(this)}>
+                    <Box pad="small" direction="row" align="center" gap="small">
+                      <Previous />
+                      <Text>Previous</Text>
+                    </Box>
+                  </Button>
+                  <Button hoverIndicator="light-1" disabled={this.state.nextDisabled} onClick={this.nextPage.bind(this)}>
+                    <Box pad="small" direction="row" align="center" gap="small">
+                      <Next />
+                      <Text>Next</Text>
+                    </Box>
+                  </Button>
                 </Box>
               </Box>
             </Box>
-            <Footer add={this.openAddLinkWindow.bind(this)} />
+            <Footer 
+              add={this.openAddLinkWindow.bind(this)} 
+              remove={this.deleteLink.bind(this)}
+            />
           </Box>
           <AddLink 
             open={this.state.addLinkOpen} 
