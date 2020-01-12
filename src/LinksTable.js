@@ -22,9 +22,9 @@ class LinksTable extends Component {
                 <DataTable
                     columns={[
                         {property: "linkid", header: "Short Code", search: true, sortable: false},
-                        {property: "url", header: "URL", search: true, sortable: true},
+                        {property: "url", header: "URL", search: true, sortable: false},
                         {property: "creation_date", header: "Created", sortable: false, align: "end",
-                        render: (datum) => <div>{moment(datum.creation_date).fromNow()}</div>
+                            render: (datum) => <div>{moment(datum.creation_date).fromNow()}</div>
                         }
                     ]}
                     onClickRow={
@@ -33,10 +33,9 @@ class LinksTable extends Component {
                         }
                     }
                     primaryKey="linkid" 
-                    sortable
                     data={this.props.links}
                     rowProps={rowProps}
-                    onSearch={(event) => {console.log(event)}}
+                    onSearch={(event) => {this.props.updateSearch(event)}}
                 />
             </Box>
         )

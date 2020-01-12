@@ -25,7 +25,7 @@ class ApiHandler {
         });
     }
 
-    getLinksPage(page_number, page_size, success_callback, failure_callback) {
+    getLinksPage(page_number, page_size, url_filter, linkid_filter, success_callback, failure_callback) {
         console.log("in paginated get links, page is", page_number, ", token is", this.api_key);
         var self = this;
         axios({
@@ -36,7 +36,11 @@ class ApiHandler {
             data: {
                 action: "list",
                 page: page_number,
-                page_size: page_size
+                page_size: page_size,
+                filter: {
+                    url: url_filter,
+                    linkid: linkid_filter
+                }
             }
         }).then(function(response) {
             success_callback(response.data);

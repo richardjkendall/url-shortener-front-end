@@ -204,7 +204,9 @@ class App extends Component {
       totalLinkCount: 0,
       currentPage: 0,
       prevDisabled: true,
-      nextDisabled: true
+      nextDisabled: true,
+      linkIdFilter: "",
+      urlFilter: ""
     }
   }
 
@@ -291,7 +293,7 @@ class App extends Component {
 
   getLinks(token, page) {
     var apiClient = new ApiHandler(token);
-    apiClient.getLinksPage(page, Configs.PAGE_SIZE, (data) => {
+    apiClient.getLinksPage(page, Configs.PAGE_SIZE, this.state.urlFilter, this.state.linkIdFilter, (data) => {
       console.log("got links");
       console.log(data);
       console.log("next enabled, total pages:", data.total_number / Configs.PAGE_SIZE);
@@ -300,7 +302,7 @@ class App extends Component {
         totalLinkCount: data.total_number,
         currentPage: page,
         nextDisabled: page >= Math.floor((data.total_number / Configs.PAGE_SIZE)),
-        prevDisabled: page == 0
+        prevDisabled: page === 0
       });
     }, () => {
       console.log("error getting links");
@@ -357,6 +359,17 @@ class App extends Component {
     }
   }
 
+  updateSearch(event) {
+    console.log("in update search", event);
+    this.setState({
+      urlFilter: event.url,
+      linkIdFilter: event.linkid
+    }, () => {
+      console.log(this.state.urlFilter);
+      this.getLinks(this.state.originalToken, 0);
+    });
+  }
+
   render() {
     if(this.state.loggedIn) {
       return (
@@ -376,9 +389,11 @@ class App extends Component {
                     page={this.state.currentPage}
                     pageSize={Configs.PAGE_SIZE}
                     totalNumber={this.state.totalLinkCount}
+                    updateSearch={this.updateSearch.bind(this)}
                   />
                 </Box>
-                <Box align="end" pad="none" direction="row">
+                <Box align="center" justify="end" pad="none" direction="row">
+                  <Text>{this.state.totalLinkCount === 0 ? 0 : this.state.currentPage + 1}/{Math.ceil(this.state.totalLinkCount / Configs.PAGE_SIZE)}</Text>
                   <Button hoverIndicator="light-1" disabled={this.state.prevDisabled} onClick={this.prevPage.bind(this)}>
                     <Box pad="small" direction="row" align="center" gap="small">
                       <Previous />
@@ -387,8 +402,8 @@ class App extends Component {
                   </Button>
                   <Button hoverIndicator="light-1" disabled={this.state.nextDisabled} onClick={this.nextPage.bind(this)}>
                     <Box pad="small" direction="row" align="center" gap="small">
-                      <Next />
                       <Text>Next</Text>
+                      <Next />
                     </Box>
                   </Button>
                 </Box>
