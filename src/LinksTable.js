@@ -1,12 +1,9 @@
 import React, { Component } from 'react';
 import moment from 'moment';
 
-import { Box, DataTable, CheckBox } from 'grommet';
+import { Box, DataTable } from 'grommet';
 
 class LinksTable extends Component { 
-    constructor(props) {
-        super(props);
-    }
 
     handleMore(event) {
         console.log(event);

@@ -1,6 +1,21 @@
+var Url = require("url-parse");
+
+function getBase() {
+    var loc = window.location.href;
+    var url = new Url(loc);
+    if(url.hostname === "localhost") {
+        return "https://stage.rjk.xyz";
+    } else {
+        var hostBits = url.hostname.split(".");
+        hostBits.shift();
+        return "https://" + hostBits.join(".");
+    }
+}
+
+
 const Configs = {
-    LOGIN_URL:      "https://stage.rjk.xyz/_triggerlogin?redirect_uri=http://localhost:3000/",
-    API_URL:        "https://stage.rjk.xyz",
+    LOGIN_URL:      getBase() + "/_triggerlogin?redirect_uri=" + window.location.href,
+    API_URL:        getBase(),
     PAGE_SIZE:      15
 }
 
