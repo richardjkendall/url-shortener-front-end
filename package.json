@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "axios": "^0.19.1",
+    "axios": "^0.21.1",
     "grommet": "^2.9.0",
     "grommet-icons": "^4.4.0",
     "html-webpack-inline-source-plugin": "0.0.10",
